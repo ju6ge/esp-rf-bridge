@@ -14,10 +14,11 @@
 
 #define RECIEVE_MAX_BUFFER_LEN 2000
 
-#define RMT_CLK_DIV 10			//devide clock to 1MHZ
+#define RMT_CLK_DIV 1			//1MHZ base clock
+#define RX_TICKS_THRESH 10		//ignore signals shorter than 8MHZ
+#define RX_IDLE_THRESHOLD 5000 	//transmittion end when a signal persist longer then 5000 * 1 us (1/1MHz)
 
-#define RX_TICKS_THRESH 255		//at 1MHZ signals shorter than 150us are filtered out
-#define RX_IDLE_THRESHOLD 200 	//at 1MHZ signals longer than 3ms are filtered out 
+#define RX_DELAY_TOLERANCE 50 //timing tolerance when decoding
 
 #define RMT_TX_CARRIER_DS 0
 
@@ -80,6 +81,7 @@ void stopReceive();
 bool decodeSignal(rmt_item32_t* data, size_t size, Message433mhz* message);
 
 
+bool msg_cmp(Message433mhz* msg1, Message433mhz* msg2);
 
 #endif // rf_h_INCLUDED
 

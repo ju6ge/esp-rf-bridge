@@ -19,6 +19,10 @@ bool tx_init = false;
 uint8_t rx_channel = 255;
 uint8_t tx_channel = 255;
 
+static inline unsigned int diff(int A, int B) {
+	  return abs(A - B);
+}
+
 void initReceive(uint8_t channel, uint8_t pin) {
 	//setup hardware reciever
 	rmt_config_t rmt_rx;
@@ -107,40 +111,91 @@ bool decodeSignal(rmt_item32_t *data, size_t size, Message433mhz* message) {
 	if (size < TRANSMITTION_MIN_LEN ) {
 		return false;
 	}
-	if (data[0].duration0 <= 2) {
+
+	//valid signals end with an duration of zero in last data duration
+	if (data[size-1].duration1 != 0) {
 		return false;
 	}
 
 	for (int i=0; i<size; i++) {
-		printf("Data:\t%i\t%i\t:\t%i\t%i\n", data[i].level0, data[i].duration0, data[i].level1, data[i].duration1);
+		//printf("%d\t%d\t:\t%d\t%d\n", data[i].level0, data[i].duration0, data[i].level1, data[i].duration1);
 	}
 
-	//try to decode signal for every known protocol
+	//decode signal for every known protocol
 	for(int i=0; i < PROTOCOL_COUNT ; i++) {
 		message->data = 0;
 		Protocol433mhz* proto = &protocols_433mhz[i];
 
-		unsigned int sync_len = (proto->sync.low_time > proto->sync.high_time) ? proto->sync.low_time : proto->sync.high_time;
+		//if signal levels don't match the protocols levels try next protocol
+		if (( proto->inverted && (data[0].level0 == 1 && data[0].level1 == 0)) 
+		   || ( !proto->inverted && (data[0].level0 == 0 && data[0].level1 == 1)) ) { 
+			continue;
+		}
 
-		/* For protocols that start low, the sync period looks like
-		 *               _________
-		 * _____________|         |XXXXXXXXXXXX|
-		 *
-		 * |--1st dur--|-2nd dur-|-Start data-|
-		 *
-		 * The 3rd saved duration starts the data.
-		 *
-		 * For protocols that start high, the sync period looks like
-		 *
-		 *  ______________
-		 * |              |____________|XXXXXXXXXXXXX|
-		 *
-		 * |-filtered out-|--1st dur--|--Start data--|
-		 *
-		 * The 2nd saved duration starts the data
-		 */
+		bool first_longer = (data[0].duration0 > data[0].duration1) ? true : false;
+		uint16_t div = 1;
+
+		if (first_longer) {
+			if (proto->zero.high_time > proto->zero.low_time) {
+				div = proto->zero.high_time;
+			} else {
+				div = proto->one.high_time;
+			}
+		} else {
+			if (proto->zero.high_time < proto->zero.low_time) {
+				div = proto->zero.low_time;
+			} else {
+				div = proto->one.low_time;
+			}
+		}
+
+		uint32_t pulse_len = first_longer ? data[0].duration0 : data[0].duration1;
+		pulse_len /= div;
+		uint32_t rec_tolerance = pulse_len * RX_DELAY_TOLERANCE / 100;
+		bool failed = false;
+
+		for (int j=0; j<size-1; j++) {
+			message->data <<= 1;
+			if ( diff(data[j].duration0, pulse_len*proto->zero.high_time) < rec_tolerance && 
+				diff(data[j].duration1, pulse_len*proto->zero.low_time) < rec_tolerance ){
+				//recieved zero
+			} else if ( diff(data[j].duration0, pulse_len*proto->one.high_time) < rec_tolerance && 
+				diff(data[j].duration1, pulse_len*proto->one.low_time) < rec_tolerance ) {
+				//recieved one
+				message->data |= 1;
+			} else {
+				failed = true;
+				break;
+			}
+		}
+		if (!failed) {
+			message->protocol = proto;
+			message->code_lenght = size;
+			message->pulse_length = pulse_len;
+			message->repeat = 1;
+			return true;
+		}
 	}
 
+	return false;
+}
+
+bool msg_cmp(Message433mhz* msg1, Message433mhz* msg2) {
+	if (msg1->data != msg2->data) {
+		return false;
+	}
+
+	if (msg1->code_lenght != msg2->code_lenght) {
+		return false;
+	}
+
+	if ( diff(msg1->pulse_length, msg2->pulse_length) > RX_DELAY_TOLERANCE) {
+		return false;
+	}
+
+	if ( msg1->protocol != msg2->protocol ) {
+		return false;
+	}
 
 	return true;
 }
