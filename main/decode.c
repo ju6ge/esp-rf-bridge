@@ -31,7 +31,6 @@ void RecieverDecoderTask(void *arg) {
 				}
 			}
 
-
 			vRingbufferReturnItem(rb, (void *) item);
 			item = NULL;
 		}

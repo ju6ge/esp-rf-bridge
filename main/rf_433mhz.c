@@ -102,7 +102,53 @@ void sendMessage(Message433mhz *message) {
 		return;
 	}
 
+	if (message->pulse_length == 0) {
+		printf("Can not send message with zero pulse lenght!");
+		return;
+	}
+
+	if (message->protocol == NULL) {
+		printf("Can not send message with no protocol!");
+		return;
+	}
+	uint16_t item_num = message->code_lenght+2; // sync + message_length + zero termination	
+	uint16_t size = item_num * sizeof(rmt_item32_t); 
+	rmt_item32_t* signal = malloc(size);
+
+	uint8_t level0 = message->protocol->inverted ? 0 : 1; 
+	uint8_t level1 = message->protocol->inverted ? 1 : 0; 
+
 	//Todo build waveform and send
+	signal[0].level0 = level0;
+	signal[0].duration0 = message->pulse_length * message->protocol->sync.high_time;
+	signal[0].level1 = level1;
+	signal[0].duration1 = message->pulse_length * message->protocol->sync.low_time;
+
+	for (int i=1;i<=message->code_lenght;i++) {
+		if ( message->data & ( 1 << (message->code_lenght-i) )) {
+			//send one
+			signal[i].level0 = level0;
+			signal[i].duration0 = message->pulse_length * message->protocol->one.high_time;
+			signal[i].level1 = level1;
+			signal[i].duration1 = message->pulse_length * message->protocol->one.low_time;
+		} else {
+			//send zero
+			signal[i].level0 = level0;
+			signal[i].duration0 = message->pulse_length * message->protocol->zero.high_time;
+			signal[i].level1 = level1;
+			signal[i].duration1 = message->pulse_length * message->protocol->zero.low_time;
+		}
+	}
+	signal[message->code_lenght+1].level0 = level0;
+	signal[message->code_lenght+1].duration0 = 0;
+	signal[message->code_lenght+1].level0 = level1;
+	signal[message->code_lenght+1].duration1 = 0;
+
+	for (int i=0; i<message->repeat; i++) {
+		rmt_write_items(tx_channel, signal, item_num, true);
+		rmt_wait_tx_done(tx_channel, portMAX_DELAY);
+	}
+	free(signal);
 }
 
 
@@ -117,9 +163,11 @@ bool decodeSignal(rmt_item32_t *data, size_t size, Message433mhz* message) {
 		return false;
 	}
 
-	for (int i=0; i<size; i++) {
-		//printf("%d\t%d\t:\t%d\t%d\n", data[i].level0, data[i].duration0, data[i].level1, data[i].duration1);
-	}
+	//printf ("--------------------------------------------\n");
+	//for (int i=0; i<size; i++) {
+	//	printf("%d\t%d\t:\t%d\t%d\n", data[i].level0, data[i].duration0, data[i].level1, data[i].duration1);
+	//}
+	//printf ("--------------------------------------------\n");
 
 	//decode signal for every known protocol
 	for(int i=0; i < PROTOCOL_COUNT ; i++) {

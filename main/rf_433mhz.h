@@ -16,7 +16,7 @@
 
 #define RMT_CLK_DIV 1			//1MHZ base clock
 #define RX_TICKS_THRESH 10		//ignore signals shorter than 8MHZ
-#define RX_IDLE_THRESHOLD 5000 	//transmittion end when a signal persist longer then 5000 * 1 us (1/1MHz)
+#define RX_IDLE_THRESHOLD 4000 	//transmittion end when a signal persist longer then 4000 * 1 us (1/1MHz)
 
 #define RX_DELAY_TOLERANCE 50 //timing tolerance when decoding
 
@@ -79,6 +79,7 @@ void startReceive();
 void stopReceive();
 
 bool decodeSignal(rmt_item32_t* data, size_t size, Message433mhz* message);
+void sendMessage(Message433mhz* msg);
 
 
 bool msg_cmp(Message433mhz* msg1, Message433mhz* msg2);

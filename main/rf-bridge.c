@@ -38,5 +38,4 @@ void app_main()
 
    	//Start tasks
    	xTaskCreate(RecieverDecoderTask, "433mhz_reciever", 2048, NULL, 10, NULL);
-
 }
