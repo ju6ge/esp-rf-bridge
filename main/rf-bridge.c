@@ -18,6 +18,7 @@
 #include "tasks.h"
 #include "wifi.h"
 #include "rf_433mhz.h"
+#include "mqtt.h"
 #include "state.h"
 
 #define TX_433MHZ_PIN 18

@@ -25,7 +25,7 @@ static EventGroupHandle_t s_wifi_event_group;
  * - are we connected to the AP with an IP? */
 const int WIFI_CONNECTED_BIT = BIT0;
 
-static const char *TAG = "wifi station";
+static const char *TAG_WIFI = "wifi station";
 
 static int s_retry_num = 0;
 
@@ -39,12 +39,12 @@ static void event_handler(void* arg, esp_event_base_t event_base,
             esp_wifi_connect();
             xEventGroupClearBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
             s_retry_num++;
-            ESP_LOGI(TAG, "retry to connect to the AP");
+            ESP_LOGI(TAG_WIFI, "retry to connect to the AP");
         }
-        ESP_LOGI(TAG,"connect to the AP fail");
+        ESP_LOGI(TAG_WIFI,"connect to the AP fail");
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t* event = (ip_event_got_ip_t*) event_data;
-        ESP_LOGI(TAG, "got ip:%s",
+        ESP_LOGI(TAG_WIFI, "got ip:%s",
                  ip4addr_ntoa(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
@@ -74,8 +74,8 @@ void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
     ESP_ERROR_CHECK(esp_wifi_start() );
 
-    ESP_LOGI(TAG, "wifi_init_sta finished.");
-    ESP_LOGI(TAG, "connect to ap SSID:%s", ESP_WIFI_SSID);
+    ESP_LOGI(TAG_WIFI, "wifi_init_sta finished.");
+    ESP_LOGI(TAG_WIFI, "connect to ap SSID:%s", ESP_WIFI_SSID);
 }
 
 
