@@ -16,7 +16,7 @@
 
 #define RMT_CLK_DIV 1			//1MHZ base clock
 #define RX_TICKS_THRESH 10		//ignore signals shorter than 8MHZ
-#define RX_IDLE_THRESHOLD 4000 	//transmittion end when a signal persist longer then 4000 * 1 us (1/1MHz)
+#define RX_IDLE_THRESHOLD 4500 	//transmittion end when a signal persist longer then 4000 * 1 us (1/1MHz)
 
 #define RX_DELAY_TOLERANCE 50 //timing tolerance when decoding
 
