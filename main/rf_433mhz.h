@@ -54,6 +54,7 @@ extern Protocol433mhz protocols_433mhz[];
 
 extern bool rx_init;
 extern uint8_t rx_channel;
+extern bool rx_running;
 
 extern bool tx_init;
 extern uint8_t tx_channel;

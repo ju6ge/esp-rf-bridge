@@ -30,27 +30,52 @@
 
 void app_main()
 {
-    printf("Application code starts now!\n");
+	printf("Application code starts now!\n");
 
-    //setup hardwar
-    initReceive(RX_433MHZ_CHANNEL, RX_433MHZ_PIN);
-    initTransmit(TX_433MHZ_CHANNEL, TX_433MHZ_PIN);
+	//setup hardwar
+	initReceive(RX_433MHZ_CHANNEL, RX_433MHZ_PIN);
+	initTransmit(TX_433MHZ_CHANNEL, TX_433MHZ_PIN);
 
-    //Load saved state
 
+	//mount filesystem
+	esp_vfs_spiffs_conf_t fs_conf = {
+		.base_path = "/spiffs",
+		.partition_label = NULL,
+		.max_files = 5,
+		.format_if_mount_failed = false
+	};
+
+	// Use settings defined above to initialize and mount SPIFFS filesystem.
+	esp_err_t ret = esp_vfs_spiffs_register(&fs_conf);
+	if (ret != ESP_OK) {
+		if (ret == ESP_FAIL) {
+			ESP_LOGE(TAG, "Failed to mount or format filesystem");
+		} else if (ret == ESP_ERR_NOT_FOUND) {
+			ESP_LOGE(TAG, "Failed to find SPIFFS partition");
+		} else {
+			ESP_LOGE(TAG, "Failed to initialize SPIFFS (%s)", esp_err_to_name(ret));
+		}
+		return;
+	}
+
+	//Load saved state
+	readState(&runstate);
+	for ( int i=0; i < runstate.lightcount; i++){
+		printf("Light: %s\n\tpulse:\t%d\n\tstate:\t%d\n\tcode:\t%d\n\toffset:\t%d\n\tproto:\t%d\n", runstate.lights[i].name, runstate.lights[i].pulse_length, runstate.lights[i].state, runstate.lights[i].code, runstate.lights[i].off_set, runstate.lights[i].protocol_num);
+	}
 
 	//initialize cached storade for wifi and mqtt config 
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-      ESP_ERROR_CHECK(nvs_flash_erase());
-      ret = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(ret);
+	ret = nvs_flash_init();
+	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+	  ESP_ERROR_CHECK(nvs_flash_erase());
+	  ret = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(ret);
 
-    //setup conncetion
-    wifi_init_sta();
-    mqtt_start();
+	//setup conncetion
+	wifi_init_sta();
+	mqtt_start();
 
    	//Start tasks
-   	xTaskCreate(RecieverDecoderTask, "433mhz_reciever", 2048, NULL, 10, NULL);
+   	xTaskCreate(RecieverDecoderTask, "433mhz_reciever", 4096, NULL, 10, NULL);
 }

@@ -5,7 +5,7 @@ RuntimeState runstate;
 
 void saveState(RuntimeState* state) {
 	//printf("Function saveState\n");
-	FILE *fd = fopen("lights.conf", "w");
+	FILE *fd = fopen("/spiffs/lights.conf", "w");
 	if (fd == NULL) {
 		return;
 	}
@@ -17,7 +17,7 @@ void saveState(RuntimeState* state) {
 
 bool readState(RuntimeState* state) {
 	//printf("Function readState \n");
-	FILE *fd = fopen("lights.conf", "r");
+	FILE *fd = fopen("/spiffs/lights.conf", "r");
 	if (fd == NULL) {
 		return false;
 	}

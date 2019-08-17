@@ -15,6 +15,7 @@ Protocol433mhz protocols_433mhz[] = {
 
 bool rx_init = false;
 bool tx_init = false;
+bool rx_running = false;
 
 uint8_t rx_channel = 255;
 uint8_t tx_channel = 255;
@@ -73,7 +74,7 @@ void startReceive() {
 		printf("Can not start recieve! Please initialize the reciever first!");
 		return;
 	}
-
+	rx_running = true;
 	rmt_rx_start(rx_channel, 1);
 }
 
@@ -81,7 +82,7 @@ void stopReceive() {
 	if (!rx_init) {
 		return;
 	}
-
+	rx_running = false;
 	rmt_rx_stop(rx_channel);
 }
 
@@ -111,6 +112,11 @@ void sendMessage(Message433mhz *message) {
 		printf("Can not send message with no protocol!");
 		return;
 	}
+	bool was_rx_running = rx_running;
+    if (was_rx_running) {
+        stopReceive();
+    }
+
 	uint16_t item_num = message->code_lenght+2; // sync + message_length + zero termination	
 	uint16_t size = item_num * sizeof(rmt_item32_t); 
 	rmt_item32_t* signal = malloc(size);
@@ -149,6 +155,10 @@ void sendMessage(Message433mhz *message) {
 		rmt_wait_tx_done(tx_channel, portMAX_DELAY);
 	}
 	free(signal);
+
+    if (was_rx_running) {
+        startReceive();
+    }
 }
 
 

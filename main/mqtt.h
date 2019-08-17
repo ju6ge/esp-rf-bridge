@@ -29,6 +29,8 @@
 #define MQTT_USER CONFIG_ESP_MQTT_USER
 #define MQTT_PASS CONFIG_ESP_MQTT_PASSWORD
 
+#define MQTT_TOPIC_PREFIX "lights"
+
 //actions per light
 #define MQTT_TOPIC_STATE "state"
 #define MQTT_TOPIC_SET_STATE "set_state"
@@ -50,6 +52,7 @@ esp_mqtt_client_handle_t client = NULL;
 bool mqtt_connected = false;
 
 void mqtt_react(char* data, uint16_t data_len, char* topic, uint16_t topic_len);
+bool updateMqttStatus(Light* l);
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
@@ -134,15 +137,15 @@ bool is_special_action(char* action_name, char* payload) {
 		if ( strncmp(MQTT_TOPIC_ALLON, action_name, strlen(MQTT_TOPIC_ALLON)) == 0 ) {
 			l->state = true;
 			setLightState(l);
-			//xQueueSend(mqtt_to_publish, l, 0);
+			updateMqttStatus(l);
 		} else if ( strncmp(MQTT_TOPIC_ALLOFF, action_name, strlen(MQTT_TOPIC_ALLOFF)) == 0 ) {
 			l->state = false;
 			setLightState(l);
-			//xQueueSend(mqtt_to_publish, l, 0);
+			updateMqttStatus(l);
 		} else if ( strncmp(MQTT_TOPIC_CONFIG, action_name, strlen(MQTT_TOPIC_CONFIG)) == 0 ) {
 			Light tmp = *l;
 			tmp.update_only_state = false;
-			//xQueueSend(mqtt_to_publish, &tmp, 0);
+			updateMqttStatus(l);
 		} else {
 			return false;
 		}
@@ -152,7 +155,7 @@ bool is_special_action(char* action_name, char* payload) {
 
 
 void mqtt_react(char* data_orig, uint16_t data_len, char* topic_orig, uint16_t topic_len) {
-    uint16_t striplen = strlen("lights") + 1;
+    uint16_t striplen = strlen(MQTT_TOPIC_PREFIX) + 1;
 
     char* topic = malloc(topic_len+1);
     memset(topic, 0, topic_len+1);
@@ -227,15 +230,66 @@ void mqtt_react(char* data_orig, uint16_t data_len, char* topic_orig, uint16_t t
 		return;
 	}
 	saveState(&runstate);
+
+	if (changed) {
+		updateMqttStatus(l);
+	}
+
 	free(topic);
 	free(data);
 }
 
-bool updateMqttStatus(Light* l) {
+bool updateMqttStatus(Light* light) {
 	if (!mqtt_connected) {
 		return false;
 	}
 
+	char* topic = malloc(64);
+	char* msg = malloc(100);
+	memset(topic, 0, 64);
+	memset(msg, 0, 100);
+
+	//send light state
+	sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, "state");
+	sprintf(msg, "%d", light->state);
+	int ret = esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 1);
+	if (ret == 0){
+		return false;
+	}
+
+	if (!light->update_only_state) {
+		//don't retain messages from these topics
+		//send light pulse_length
+		memset(topic, 0, 64);
+		memset(msg, 0, 100);
+		sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_PULSELEN);
+		sprintf(msg, "%d", light->pulse_length);
+		esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 0);
+
+		//send light code
+		memset(topic, 0, 64);
+		memset(msg, 0, 100);
+		sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_CODE);
+		sprintf(msg, "%d", light->code);
+		esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 0);
+
+		//send light offset
+		memset(topic, 0, 64);
+		memset(msg, 0, 100);
+		sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_OFFSET);
+		sprintf(msg, "%d", light->off_set);
+		esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 0);
+
+		//send light protocol num
+		memset(topic, 0, 64);
+		memset(msg, 0, 100);
+		sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_PROTOCOL);
+		sprintf(msg, "%d", light->protocol_num);
+		esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 0);
+	}
+
+	free(topic);
+	free(msg);
 	return true;
 }
 
