@@ -1,4 +1,7 @@
 #include "state.h"
+#include "rf_433mhz.h"
+
+RuntimeState runstate;
 
 void saveState(RuntimeState* state) {
 	//printf("Function saveState\n");
@@ -87,4 +90,16 @@ bool addLight(char* data, RuntimeState* state) {
 	return false;
 }
 
-
+void setLightState(Light* l) {
+	Message433mhz msgtosend;
+	msgtosend.code_lenght=24;
+	msgtosend.repeat=4;
+	msgtosend.pulse_length = l->pulse_length;
+	msgtosend.protocol = &protocols_433mhz[l->protocol_num];
+	if  (l->state) {
+		msgtosend.data = l->code;
+	} else {
+		msgtosend.data = l->code + l->off_set;
+	}
+	sendMessage(&msgtosend);
+}

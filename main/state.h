@@ -31,4 +31,8 @@ bool readState(RuntimeState* state);
 bool addLight(char* data, RuntimeState* state);
 bool readLightFromStr(char* data, Light* light);
 
+void setLightState(Light* l);
+
+extern RuntimeState runstate;
+
 #endif 

@@ -233,13 +233,13 @@ bool msg_cmp(Message433mhz* msg1, Message433mhz* msg2) {
 		return false;
 	}
 
-	if (msg1->code_lenght != msg2->code_lenght) {
-		return false;
-	}
+	//if (msg1->code_lenght != msg2->code_lenght) {
+	//	return false;
+	//}
 
-	if ( diff(msg1->pulse_length, msg2->pulse_length) > RX_DELAY_TOLERANCE) {
-		return false;
-	}
+	//if ( diff(msg1->pulse_length, msg2->pulse_length) > RX_DELAY_TOLERANCE) {
+	//	return false;
+	//}
 
 	if ( msg1->protocol != msg2->protocol ) {
 		return false;

@@ -32,21 +32,24 @@ void app_main()
 {
     printf("Application code starts now!\n");
 
-    //setup hardware
+    //setup hardwar
     initReceive(RX_433MHZ_CHANNEL, RX_433MHZ_PIN);
     initTransmit(TX_433MHZ_CHANNEL, TX_433MHZ_PIN);
 
     //Load saved state
 
 
-    //setup wifi
+	//initialize cached storade for wifi and mqtt config 
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
       ESP_ERROR_CHECK(nvs_flash_erase());
       ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+
+    //setup conncetion
     wifi_init_sta();
+    mqtt_start();
 
    	//Start tasks
    	xTaskCreate(RecieverDecoderTask, "433mhz_reciever", 2048, NULL, 10, NULL);

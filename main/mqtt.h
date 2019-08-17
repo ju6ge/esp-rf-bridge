@@ -23,11 +23,33 @@
 #include "esp_log.h"
 #include "mqtt_client.h"
 
+#include "state.h"
+
 #define MQTT_BROKER_URI CONFIG_ESP_MQTT_SERVER
+#define MQTT_USER CONFIG_ESP_MQTT_USER
+#define MQTT_PASS CONFIG_ESP_MQTT_PASSWORD
 
-static const char *TAG = "MQTTWS_EXAMPLE";
+//actions per light
+#define MQTT_TOPIC_STATE "state"
+#define MQTT_TOPIC_SET_STATE "set_state"
+#define MQTT_TOPIC_PULSELEN "pulselength"
+#define MQTT_TOPIC_OFFSET "offset"
+#define MQTT_TOPIC_CODE "code"
+#define MQTT_TOPIC_PROTOCOL "protocol"
+#define MQTT_TOPIC_TOGGLE "toggle"
 
-esp_mqtt_client_handle_t client;
+//special actions
+#define MQTT_TOPIC_ALLOFF "all_off"
+#define MQTT_TOPIC_ALLON "all_on"
+#define MQTT_TOPIC_CONFIG "send_config"
+#define MQTT_TOPIC_ADD_LIGHT "addLight"
+
+static const char *TAG = "MQTT";
+
+esp_mqtt_client_handle_t client = NULL;
+bool mqtt_connected = false;
+
+void mqtt_react(char* data, uint16_t data_len, char* topic, uint16_t topic_len);
 
 static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 {
@@ -38,37 +60,40 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 	switch (event->event_id) {
 		case MQTT_EVENT_CONNECTED:
 			ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-			msg_id = esp_mqtt_client_subscribe(client, "/topic/qos0", 0);
-			ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-			msg_id = esp_mqtt_client_subscribe(client, "/topic/qos1", 1);
-			ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+			mqtt_connected = true;
 
-			msg_id = esp_mqtt_client_unsubscribe(client, "/topic/qos1");
-			ESP_LOGI(TAG, "sent unsubscribe successful, msg_id=%d", msg_id);
+			//subscribe to topics
+			msg_id = esp_mqtt_client_subscribe(client, "lights/#", 0);
 			break;
+
 		case MQTT_EVENT_DISCONNECTED:
 			ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+			mqtt_connected = false;
 			break;
 
 		case MQTT_EVENT_SUBSCRIBED:
 			ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-			msg_id = esp_mqtt_client_publish(client, "/topic/qos0", "data", 0, 0, 0);
-			ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
 			break;
+
 		case MQTT_EVENT_UNSUBSCRIBED:
 			ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
 			break;
+
 		case MQTT_EVENT_PUBLISHED:
 			ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
 			break;
+
 		case MQTT_EVENT_DATA:
 			ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-			printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-			printf("DATA=%.*s\r\n", event->data_len, event->data);
+			//printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+			//printf("DATA=%.*s\r\n", event->data_len, event->data);
+			mqtt_react(event->data, event->data_len, event->topic, event->topic_len);
 			break;
+
 		case MQTT_EVENT_ERROR:
 			ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
 			break;
+
 		default:
 			ESP_LOGI(TAG, "Other event id:%d", event->event_id);
 			break;
@@ -84,11 +109,134 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_
 static void mqtt_start(void) {
 	const esp_mqtt_client_config_t mqtt_cfg = {
 		.uri = MQTT_BROKER_URI,
+		.username = MQTT_USER,
+		.password = MQTT_PASS
 	};
 
 	client = esp_mqtt_client_init(&mqtt_cfg);
 	esp_mqtt_client_register_event(client, ESP_EVENT_ANY_ID, mqtt_event_handler, client);
 	esp_mqtt_client_start(client);
+}
+
+bool is_special_action(char* action_name, char* payload) {
+	//printf("Function is_special_action \n");
+	if ( strncmp(MQTT_TOPIC_ADD_LIGHT, action_name, strlen(MQTT_TOPIC_ADD_LIGHT)) == 0 ) {
+		if (addLight(payload, &runstate)) {
+			saveState(&runstate);
+		}
+		return true;
+	}
+	if (runstate.lightcount <= 0) {
+		return false;
+	}
+	for(int i=0;i<runstate.lightcount; i++) {	
+		Light* l = &runstate.lights[i];
+		if ( strncmp(MQTT_TOPIC_ALLON, action_name, strlen(MQTT_TOPIC_ALLON)) == 0 ) {
+			l->state = true;
+			setLightState(l);
+			//xQueueSend(mqtt_to_publish, l, 0);
+		} else if ( strncmp(MQTT_TOPIC_ALLOFF, action_name, strlen(MQTT_TOPIC_ALLOFF)) == 0 ) {
+			l->state = false;
+			setLightState(l);
+			//xQueueSend(mqtt_to_publish, l, 0);
+		} else if ( strncmp(MQTT_TOPIC_CONFIG, action_name, strlen(MQTT_TOPIC_CONFIG)) == 0 ) {
+			Light tmp = *l;
+			tmp.update_only_state = false;
+			//xQueueSend(mqtt_to_publish, &tmp, 0);
+		} else {
+			return false;
+		}
+	}
+	return true;
+}
+
+
+void mqtt_react(char* data_orig, uint16_t data_len, char* topic_orig, uint16_t topic_len) {
+    uint16_t striplen = strlen("lights") + 1;
+
+    char* topic = malloc(topic_len+1);
+    memset(topic, 0, topic_len+1);
+    char* data = malloc(data_len+1);
+    memset(data, 0, data_len+1);
+
+    strncpy(topic, topic_orig + striplen, topic_len - striplen);
+    strncpy(data, data_orig, data_len);
+
+	printf("Recieved mqtt message: %s and data %s\n", topic, data);
+
+	//implement reactions to mqtt messages here
+	char* light_name = strsep(&topic, "/");
+	Light* l = NULL;
+	bool found = false;
+	for (int i=0;i<runstate.lightcount;i++) {
+		if ( strcmp(runstate.lights[i].name, light_name) == 0) {
+			found = true;
+			l = &runstate.lights[i];
+			break;
+		}
+	}
+	if (!found) {
+		found = is_special_action(light_name, data);
+		if (!found) {
+			printf("No light or special action with name %s found! Cannot update unkown light ... ignoring!\n", light_name);
+		}
+		return;
+	}
+	uint16_t rest_topic_len = topic_len - striplen - strlen(light_name);
+	if (rest_topic_len < 2) {
+		printf("No subtopic in MQTT request, don't now what to do with payload ... ignoring!\n");
+		return;
+	}
+	char* subtopic = strsep(&topic, "/");
+	int payload_data = atoi(data);
+	bool changed = false;
+	//update lights data according to recieved topic
+	if ( strncmp(MQTT_TOPIC_STATE, subtopic, strlen(MQTT_TOPIC_STATE)) == 0 ) {
+		//keep local state and broker state in sync
+		if (payload_data) {
+			l->state = true;
+		} else {
+			l->state = false;
+		}
+	} else if ( strncmp(MQTT_TOPIC_SET_STATE, subtopic, strlen(MQTT_TOPIC_SET_STATE)) == 0 ) {
+		if ((bool)payload_data != l->state) {
+			changed = true;
+		}
+		if (payload_data) {
+			l->state = true;
+		} else {
+			l->state = false;
+		}
+		if (changed) {
+			setLightState(l);
+		}
+	} else if ( strncmp(MQTT_TOPIC_CODE, subtopic, strlen(MQTT_TOPIC_CODE)) == 0 ) {
+		l->code = payload_data;
+	} else if ( strncmp(MQTT_TOPIC_OFFSET, subtopic, strlen(MQTT_TOPIC_OFFSET)) == 0 ) {
+		l->off_set = payload_data;
+	} else if ( strncmp(MQTT_TOPIC_PULSELEN, subtopic, strlen(MQTT_TOPIC_PULSELEN)) == 0 ) {
+		l->pulse_length = payload_data;
+	} else if ( strncmp(MQTT_TOPIC_PROTOCOL, subtopic, strlen(MQTT_TOPIC_PROTOCOL)) == 0 ) {
+		l->protocol_num = payload_data;
+	} else if ( strncmp(MQTT_TOPIC_TOGGLE, subtopic, strlen(MQTT_TOPIC_TOGGLE)) == 0 ) {
+		l->state = !l->state;
+		setLightState(l);
+		changed = true;
+	} else {
+		printf("Unkown subtopic %s ... ignoring!\n", subtopic);
+		return;
+	}
+	saveState(&runstate);
+	free(topic);
+	free(data);
+}
+
+bool updateMqttStatus(Light* l) {
+	if (!mqtt_connected) {
+		return false;
+	}
+
+	return true;
 }
 
 #endif 
