@@ -30,6 +30,7 @@ void initReceive(uint8_t channel, uint8_t pin) {
 
 	rmt_rx.channel = channel;
 	rmt_rx.gpio_num = pin;
+	rmt_rx.clock = RMT_BASECLK_REF;
 	rmt_rx.clk_div = RMT_CLK_DIV;
 	rmt_rx.mem_block_num = 1;
 	rmt_rx.rmt_mode = RMT_MODE_RX;
@@ -52,6 +53,7 @@ void initTransmit(uint8_t channel, uint8_t pin) {
 
 	rmt_tx.channel = channel;
 	rmt_tx.gpio_num = pin;
+	rmt_tx.clock = RMT_BASECLK_REF;
 	rmt_tx.clk_div = RMT_CLK_DIV;
 	rmt_tx.mem_block_num = 1;
 	rmt_tx.rmt_mode = RMT_MODE_TX;
