@@ -29,6 +29,8 @@ static const char *TAG_WIFI = "wifi station";
 
 static int s_retry_num = 0;
 
+static bool wifi_connected;
+
 static void event_handler(void* arg, esp_event_base_t event_base, 
                                 int32_t event_id, void* event_data)
 {
@@ -48,11 +50,13 @@ static void event_handler(void* arg, esp_event_base_t event_base,
                  ip4addr_ntoa(&event->ip_info.ip));
         s_retry_num = 0;
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+	    wifi_connected = true;
     }
 }
 
 void wifi_init_sta(void)
 {
+	wifi_connected = false;
     s_wifi_event_group = xEventGroupCreate();
 
     tcpip_adapter_init();

@@ -23,7 +23,7 @@ bool readState(RuntimeState* state) {
 	}
 	state->lightcount = 0;
 	state->lights = malloc(READBUFFERLEN * sizeof(Light));
-	uint16_t readlen;
+	unsigned int readlen;
 	char* line = NULL;
 
 	while(__getline(&line, &readlen, fd) != -1) {

@@ -31,6 +31,13 @@
 void app_main()
 {
 	printf("Application code starts now!\n");
+	esp_err_t ret = nvs_flash_init();
+	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+	  ESP_ERROR_CHECK(nvs_flash_erase());
+	  ret = nvs_flash_init();
+	}
+	ESP_ERROR_CHECK(ret);
+	wifi_init_sta();
 
 	//setup hardwar
 	initReceive(RX_433MHZ_CHANNEL, RX_433MHZ_PIN);
@@ -46,7 +53,7 @@ void app_main()
 	};
 
 	// Use settings defined above to initialize and mount SPIFFS filesystem.
-	esp_err_t ret = esp_vfs_spiffs_register(&fs_conf);
+	ret = esp_vfs_spiffs_register(&fs_conf);
 	if (ret != ESP_OK) {
 		if (ret == ESP_FAIL) {
 			ESP_LOGE(TAG, "Failed to mount or format filesystem");
@@ -65,15 +72,9 @@ void app_main()
 	}
 
 	//initialize cached storade for wifi and mqtt config 
-	ret = nvs_flash_init();
-	if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-	  ESP_ERROR_CHECK(nvs_flash_erase());
-	  ret = nvs_flash_init();
-	}
-	ESP_ERROR_CHECK(ret);
 
 	//setup conncetion
-	wifi_init_sta();
+	while(!wifi_connected) {}
 	mqtt_start();
 
    	//Start tasks
