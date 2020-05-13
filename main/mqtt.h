@@ -51,6 +51,7 @@ static const char *TAG = "MQTT";
 esp_mqtt_client_handle_t client = NULL;
 bool mqtt_connected = false;
 
+static void mqtt_start();
 void mqtt_react(char* data, uint16_t data_len, char* topic, uint16_t topic_len);
 bool updateMqttStatus(Light* l);
 

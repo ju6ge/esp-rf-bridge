@@ -30,10 +30,11 @@ void initReceive(uint8_t channel, uint8_t pin) {
 
 	rmt_rx.channel = channel;
 	rmt_rx.gpio_num = pin;
-	rmt_rx.clock = RMT_BASECLK_REF;
 	rmt_rx.clk_div = RMT_CLK_DIV;
 	rmt_rx.mem_block_num = 1;
 	rmt_rx.rmt_mode = RMT_MODE_RX;
+	//wtf: this flags is just stupid it enables the REF_TICK as clk src
+	rmt_rx.flags = RMT_CHANNEL_FLAGS_ALWAYS_ON;
 
 	rmt_rx.rx_config.filter_en = true;
 	rmt_rx.rx_config.filter_ticks_thresh = RX_TICKS_THRESH;
@@ -53,10 +54,11 @@ void initTransmit(uint8_t channel, uint8_t pin) {
 
 	rmt_tx.channel = channel;
 	rmt_tx.gpio_num = pin;
-	rmt_tx.clock = RMT_BASECLK_REF;
 	rmt_tx.clk_div = RMT_CLK_DIV;
 	rmt_tx.mem_block_num = 1;
 	rmt_tx.rmt_mode = RMT_MODE_TX;
+	//wtf: this flags is just stupid it enables the REF_TICK as clk src
+	rmt_tx.flags = RMT_CHANNEL_FLAGS_ALWAYS_ON;
 
 	rmt_tx.tx_config.loop_en = false;
 	rmt_tx.tx_config.carrier_en = RMT_TX_CARRIER_DS;
@@ -253,9 +255,9 @@ bool msg_cmp(Message433mhz* msg1, Message433mhz* msg2) {
 	//	return false;
 	//}
 
-	if ( msg1->protocol != msg2->protocol ) {
-		return false;
-	}
+	//if ( msg1->protocol != msg2->protocol ) {
+	//	return false;
+	//}
 
 	return true;
 }
