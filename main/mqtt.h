@@ -29,7 +29,7 @@
 #define MQTT_USER CONFIG_ESP_MQTT_USER
 #define MQTT_PASS CONFIG_ESP_MQTT_PASSWORD
 
-#define MQTT_TOPIC_PREFIX "lights"
+#define MQTT_TOPIC_PREFIX "rf-bridge"
 
 //actions per light
 #define MQTT_TOPIC_STATE "state"
@@ -45,6 +45,9 @@
 #define MQTT_TOPIC_ALLON "all_on"
 #define MQTT_TOPIC_CONFIG "send_config"
 #define MQTT_TOPIC_ADD_LIGHT "addLight"
+
+#define MQTT_MESSAGE_ON "ON"
+#define MQTT_MESSAGE_OFF "OFF"
 
 static const char *TAG = "MQTT";
 
@@ -66,8 +69,13 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 			ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
 			mqtt_connected = true;
 
+			uint16_t subscribe_len = strlen(MQTT_TOPIC_PREFIX) + 3;
+			char* subscribe_topic = malloc(subscribe_len);
+
+			sprintf(subscribe_topic, "%s/#", MQTT_TOPIC_PREFIX);
 			//subscribe to topics
-			msg_id = esp_mqtt_client_subscribe(client, "lights/#", 0);
+			msg_id = esp_mqtt_client_subscribe(client, subscribe_topic, 0);
+			free(subscribe_topic);
 			break;
 
 		case MQTT_EVENT_DISCONNECTED:
@@ -192,17 +200,28 @@ void mqtt_react(char* data_orig, uint16_t data_len, char* topic_orig, uint16_t t
 		return;
 	}
 	char* subtopic = strsep(&topic, "/");
-	int payload_data = atoi(data);
 	bool changed = false;
 	//update lights data according to recieved topic
 	if ( strncmp(MQTT_TOPIC_STATE, subtopic, strlen(MQTT_TOPIC_STATE)) == 0 ) {
 		//keep local state and broker state in sync
+		int payload_data;
+		if (strncmp(MQTT_MESSAGE_ON, data, strlen(MQTT_MESSAGE_ON)) == 0) {
+			payload_data = 1;
+		} else {
+			payload_data = 0;
+		}
 		if (payload_data) {
 			l->state = true;
 		} else {
 			l->state = false;
 		}
 	} else if ( strncmp(MQTT_TOPIC_SET_STATE, subtopic, strlen(MQTT_TOPIC_SET_STATE)) == 0 ) {
+		int payload_data;
+		if (strncmp(MQTT_MESSAGE_ON, data, strlen(MQTT_MESSAGE_ON)) == 0) {
+			payload_data = 1;
+		} else {
+			payload_data = 0;
+		}
 		if ((bool)payload_data != l->state) {
 			changed = true;
 		}
@@ -215,12 +234,16 @@ void mqtt_react(char* data_orig, uint16_t data_len, char* topic_orig, uint16_t t
 			setLightState(l);
 		}
 	} else if ( strncmp(MQTT_TOPIC_CODE, subtopic, strlen(MQTT_TOPIC_CODE)) == 0 ) {
+		int payload_data = atoi(data);
 		l->code = payload_data;
 	} else if ( strncmp(MQTT_TOPIC_OFFSET, subtopic, strlen(MQTT_TOPIC_OFFSET)) == 0 ) {
+		int payload_data = atoi(data);
 		l->off_set = payload_data;
 	} else if ( strncmp(MQTT_TOPIC_PULSELEN, subtopic, strlen(MQTT_TOPIC_PULSELEN)) == 0 ) {
+		int payload_data = atoi(data);
 		l->pulse_length = payload_data;
 	} else if ( strncmp(MQTT_TOPIC_PROTOCOL, subtopic, strlen(MQTT_TOPIC_PROTOCOL)) == 0 ) {
+		int payload_data = atoi(data);
 		l->protocol_num = payload_data;
 	} else if ( strncmp(MQTT_TOPIC_TOGGLE, subtopic, strlen(MQTT_TOPIC_TOGGLE)) == 0 ) {
 		l->state = !l->state;
@@ -251,8 +274,12 @@ bool updateMqttStatus(Light* light) {
 	memset(msg, 0, 100);
 
 	//send light state
-	sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, "state");
-	sprintf(msg, "%d", light->state);
+	sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_STATE);
+	if (light->state) {
+		sprintf(msg, "%s", MQTT_MESSAGE_ON);
+	} else {
+		sprintf(msg, "%s", MQTT_MESSAGE_OFF);
+	}
 	int ret = esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 1);
 	if (ret == 0){
 		return false;
