@@ -10,6 +10,7 @@
 #include "freertos/task.h"
 
 #include "esp_system.h"
+#include "esp_task_wdt.h"
 
 #include "esp_err.h"
 #include "esp_log.h"
@@ -74,9 +75,13 @@ void app_main()
 	//initialize cached storade for wifi and mqtt config 
 
 	//setup conncetion
-	while(!wifi_connected) {}
+	while(!wifi_connected) {
+		esp_task_wdt_reset();
+	}
+	printf("Start MQTT\n");
 	mqtt_start();
 
    	//Start tasks
+	printf("Start Reciever Task\n");
    	xTaskCreate(RecieverDecoderTask, "433mhz_reciever", 4096, NULL, 10, NULL);
 }
