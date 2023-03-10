@@ -66,7 +66,7 @@ void RecieverDecoderTask(void *arg) {
 
 			if (decodeSignal(item, rx_size/4, &msg)) {
 				if ( msg_cmp(&previous_msg, &msg) ){
-					printf("recived data %d\n", previous_msg.data);
+					printf("recived data %ld\n", previous_msg.data);
 					handle_recieved_433mhz_msg(&previous_msg);
 				} else {
 					previous_msg = msg;

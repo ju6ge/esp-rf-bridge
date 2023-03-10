@@ -10,7 +10,7 @@ void saveState(RuntimeState* state) {
 		return;
 	}
 	for (int i=0;i<state->lightcount;i++) {
-		fprintf(fd, "%s:%d:%d:%d:%d:%d\n", state->lights[i].name, state->lights[i].pulse_length, state->lights[i].state, state->lights[i].code, state->lights[i].off_set, state->lights[i].protocol_num);
+		fprintf(fd, "%s:%d:%d:%ld:%d:%d\n", state->lights[i].name, state->lights[i].pulse_length, state->lights[i].state, state->lights[i].code, state->lights[i].off_set, state->lights[i].protocol_num);
 }
 	fclose(fd);
 }

@@ -5,11 +5,9 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include "esp_wifi.h"
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "esp_event.h"
-#include "tcpip_adapter.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -49,7 +47,7 @@
 #define MQTT_MESSAGE_ON "ON"
 #define MQTT_MESSAGE_OFF "OFF"
 
-static const char *TAG = "MQTT";
+static const char *MQTT_TAG = "MQTT";
 
 esp_mqtt_client_handle_t client = NULL;
 bool mqtt_connected = false;
@@ -66,7 +64,7 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 	// your_context_t *context = event->context;
 	switch (event->event_id) {
 		case MQTT_EVENT_CONNECTED:
-			ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_CONNECTED");
 			mqtt_connected = true;
 
 			uint16_t subscribe_len = strlen(MQTT_TOPIC_PREFIX) + 3;
@@ -79,50 +77,50 @@ static esp_err_t mqtt_event_handler_cb(esp_mqtt_event_handle_t event)
 			break;
 
 		case MQTT_EVENT_DISCONNECTED:
-			ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_DISCONNECTED");
 			mqtt_connected = false;
 			break;
 
 		case MQTT_EVENT_SUBSCRIBED:
-			ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
 			break;
 
 		case MQTT_EVENT_UNSUBSCRIBED:
-			ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
 			break;
 
 		case MQTT_EVENT_PUBLISHED:
-			ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
 			break;
 
 		case MQTT_EVENT_DATA:
-			ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_DATA");
 			//printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
 			//printf("DATA=%.*s\r\n", event->data_len, event->data);
 			mqtt_react(event->data, event->data_len, event->topic, event->topic_len);
 			break;
 
 		case MQTT_EVENT_ERROR:
-			ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+			ESP_LOGI(MQTT_TAG, "MQTT_EVENT_ERROR");
 			break;
 
 		default:
-			ESP_LOGI(TAG, "Other event id:%d", event->event_id);
+			ESP_LOGI(MQTT_TAG, "Other event id:%d", event->event_id);
 			break;
 	}
 	return ESP_OK;
 }
 
 static void mqtt_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data) {
-		ESP_LOGD(TAG, "Event dispatched from event loop base=%s, event_id=%d", base, event_id);
+		ESP_LOGD(MQTT_TAG, "Event dispatched from event loop base=%s, event_id=%ld", base, event_id);
 		mqtt_event_handler_cb(event_data);
 }
 
 static void mqtt_start(void) {
+	char uri[512];
+	sprintf(&uri, "mqtt://%s:%s@%s", MQTT_USER, MQTT_PASS, MQTT_BROKER_URI);
 	const esp_mqtt_client_config_t mqtt_cfg = {
-		.uri = MQTT_BROKER_URI,
-		.username = MQTT_USER,
-		.password = MQTT_PASS
+		.broker.address.uri = uri
 	};
 
 	client = esp_mqtt_client_init(&mqtt_cfg);
@@ -298,7 +296,7 @@ bool updateMqttStatus(Light* light) {
 		memset(topic, 0, 64);
 		memset(msg, 0, 100);
 		sprintf(topic, "%s/%s/%s", MQTT_TOPIC_PREFIX, light->name, MQTT_TOPIC_CODE);
-		sprintf(msg, "%d", light->code);
+		sprintf(msg, "%ld", light->code);
 		esp_mqtt_client_publish(client, topic, msg, strlen(msg), 1, 0);
 
 		//send light offset

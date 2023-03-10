@@ -69,7 +69,7 @@ void app_main()
 	//Load saved state
 	readState(&runstate);
 	for ( int i=0; i < runstate.lightcount; i++){
-		printf("Light: %s\n\tpulse:\t%d\n\tstate:\t%d\n\tcode:\t%d\n\toffset:\t%d\n\tproto:\t%d\n", runstate.lights[i].name, runstate.lights[i].pulse_length, runstate.lights[i].state, runstate.lights[i].code, runstate.lights[i].off_set, runstate.lights[i].protocol_num);
+		printf("Light: %s\n\tpulse:\t%d\n\tstate:\t%d\n\tcode:\t%ld\n\toffset:\t%d\n\tproto:\t%d\n", runstate.lights[i].name, runstate.lights[i].pulse_length, runstate.lights[i].state, runstate.lights[i].code, runstate.lights[i].off_set, runstate.lights[i].protocol_num);
 	}
 
 	//initialize cached storade for wifi and mqtt config 

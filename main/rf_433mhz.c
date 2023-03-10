@@ -34,7 +34,7 @@ void initReceive(uint8_t channel, uint8_t pin) {
 	rmt_rx.mem_block_num = 1;
 	rmt_rx.rmt_mode = RMT_MODE_RX;
 	//wtf: this flags is just stupid it enables the REF_TICK as clk src
-	rmt_rx.flags = RMT_CHANNEL_FLAGS_ALWAYS_ON;
+	rmt_rx.flags = RMT_CHANNEL_FLAGS_AWARE_DFS;
 
 	rmt_rx.rx_config.filter_en = true;
 	rmt_rx.rx_config.filter_ticks_thresh = RX_TICKS_THRESH;
@@ -58,7 +58,7 @@ void initTransmit(uint8_t channel, uint8_t pin) {
 	rmt_tx.mem_block_num = 1;
 	rmt_tx.rmt_mode = RMT_MODE_TX;
 	//wtf: this flags is just stupid it enables the REF_TICK as clk src
-	rmt_tx.flags = RMT_CHANNEL_FLAGS_ALWAYS_ON;
+	rmt_tx.flags = RMT_CHANNEL_FLAGS_AWARE_DFS;
 
 	rmt_tx.tx_config.loop_en = false;
 	rmt_tx.tx_config.carrier_en = RMT_TX_CARRIER_DS;
